@@ -91,7 +91,7 @@
             color: #495057;
             margin-bottom: 8px;
         }
-        input, select {
+        input, select, textarea { /* Added textarea */
             padding: 12px 15px;
             border: 2px solid #e9ecef;
             border-radius: 10px;
@@ -99,10 +99,14 @@
             width: 100%; /* Make inputs fluid */
             box-sizing: border-box; /* Include padding and border in element's total width and height */
         }
-        input:focus, select:focus {
+        input:focus, select:focus, textarea:focus { /* Added textarea */
             outline: none;
             border-color: #0071ce;
             box-shadow: 0 0 0 3px rgba(0,113,206,0.1);
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical; /* Allow vertical resizing */
         }
         .calculate-btn {
             background: linear-gradient(135deg, #28a745, #20c997);
@@ -245,12 +249,21 @@
         /* Styles for the grid header and grid items */
         .history-grid-row {
             display: grid;
-            grid-template-columns: 1.8fr 1.2fr 0.8fr 1.2fr 1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 1.5fr; /* Adjusted for content + Created By */
+            /* Adjusted for notes and delete button */
+            grid-template-columns: 1.3fr 0.9fr 0.6fr 0.9fr 0.9fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 1.2fr 1.5fr; 
             align-items: center;
             gap: 10px; /* Space between columns */
             padding: 10px 15px;
             text-align: center;
         }
+        /* Make product name and notes columns grow for better display */
+        .history-item .product-name-cell, .history-item .notes-cell {
+            white-space: normal; /* Allow text to wrap */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-height: 3em; /* Limit height for notes, show ellipsis */
+        }
+
 
         .history-header-row {
             font-weight: 700;
@@ -275,13 +288,59 @@
         .history-item .grid-cell {
             padding: 8px 5px;
             word-break: break-word; /* Allow long words to break */
-            overflow: hidden;
-            text-overflow: ellipsis; /* Add ellipsis for overflow text */
-            white-space: nowrap; /* Keep text on single line for grid cells */
+            /* overflow: hidden; */ /* Removed to allow text wrap in notes */
+            /* text-overflow: ellipsis; */ /* Removed for notes to allow wrapping */
+            /* white-space: nowrap; */ /* Removed for notes to allow wrapping */
         }
 
         .history-item .grid-cell.profit-negative {
             color: #dc3545;
+        }
+
+        .history-item .grid-cell button {
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .history-item .load-button {
+            background-color: #0071ce;
+            color: white;
+        }
+        .history-item .load-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        .history-item .delete-button {
+            background-color: #dc3545;
+            color: white;
+            margin-left: 5px; /* Spacing between load and delete */
+        }
+        .history-item .delete-button:hover {
+            background-color: #c82333;
+            transform: translateY(-1px);
+        }
+
+        /* Radio button group styling for Fee Source */
+        .radio-group {
+            display: flex;
+            justify-content: flex-start; /* Align radios to start */
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap; /* Allow wrapping */
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: normal; /* Override default label bold */
+            margin-bottom: 0; /* Remove bottom margin */
+        }
+        .radio-group input[type="radio"] {
+            margin-right: 8px;
+            width: auto; /* Revert width for radio button */
         }
 
         /* Mobile specific styling for history list */
@@ -320,9 +379,13 @@
             .history-item .return-ratio-cell:before { content: "退货占比:"; }
             .history-item .profit-margin-cell:before { content: "利润率:"; }
             .history-item .created-by-cell:before { content: "创建者:"; } /* New label for mobile */
+            .history-item .notes-cell:before { content: "备注:"; } /* New label for mobile */
             .history-item .load-button-cell {
                 text-align: right; /* Align load button to the right */
                 margin-top: 10px;
+            }
+            .history-item .load-button-cell button {
+                width: auto; /* Auto width for buttons */
             }
         }
     </style>
@@ -353,21 +416,25 @@
                         <input type="text" id="itemId">
                     </div>
                     <div class="input-group">
-                        <label for="length">长度 (英寸)</label>
+                        <label for="length">长度 (厘米 cm)</label>
                         <input type="number" id="length" step="0.1" value="0">
                     </div>
                     <div class="input-group">
-                        <label for="width">宽度 (英寸)</label>
+                        <label for="width">宽度 (厘米 cm)</label>
                         <input type="number" id="width" step="0.1" value="0">
                     </div>
                     <div class="input-group">
-                        <label for="height">高度 (英寸)</label>
+                        <label for="height">高度 (厘米 cm)</label>
                         <input type="number" id="height" step="0.1" value="0">
                     </div>
                     <div class="input-group">
-                        <label for="weight">重量 (磅)</label>
+                        <label for="weight">重量 (千克 kg)</label>
                         <input type="number" id="weight" step="0.01" value="0">
                     </div>
+                </div>
+                <div class="input-group">
+                    <label for="productNotes">备注</label>
+                    <textarea id="productNotes" placeholder="在这里输入任何关于产品或计算的备注信息..."></textarea>
                 </div>
             </div>
 
@@ -517,15 +584,15 @@
                 <div class="example-grid">
                     <div class="example-item" onclick="window.setEx('earring')">
                         <div class="example-title">精美耳环</div>
-                        <div class="example-details">1x1x2英寸 | 0.13磅</div>
+                        <div class="example-details">2.54x2.54x5.08 cm | 0.059 kg</div>
                     </div>
                     <div class="example-item" onclick="window.setEx('pan')">
                         <div class="example-title">不锈钢煎锅</div>
-                        <div class="example-details">18.6x10.5x3英寸 | 3.7磅</div>
+                        <div class="example-details">47.24x26.67x7.62 cm | 1.678 kg</div>
                     </div>
                     <div class="example-item" onclick="window.setEx('bike')">
                         <div class="example-title">山地自行车</div>
-                        <div class="example-details">49x7.7x26.4英寸 | 25.6磅</div>
+                        <div class="example-details">124.46x19.56x67.06 cm | 11.612 kg</div>
                     </div>
                 </div>
             </div>
@@ -540,8 +607,12 @@
                         <input type="number" id="sellingPrice" step="0.01" value="0">
                     </div>
                     <div class="input-group">
-                        <label for="costOfGoods">产品采购成本 ($)</label>
+                        <label for="costOfGoods">产品采购成本 (¥)</label>
                         <input type="number" id="costOfGoods" step="0.01" value="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="rmbToUsdRate">人民币对美元汇率 (¥/$) </label>
+                        <input type="number" id="rmbToUsdRate" step="0.01" value="7.0">
                     </div>
                     <div class="input-group">
                         <label for="adSpendRatio">广告占比 (%)</label>
@@ -556,6 +627,43 @@
                         <input type="number" id="commissionRate" step="0.1" value="15">
                     </div>
                 </div>
+
+                <div class="section-title" style="margin-top: 30px;">WFS 费用来源</div>
+                <div class="input-group">
+                    <label>选择 WFS 费用来源</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="wfsFeeSource" value="auto" checked onchange="window.toggleWFSFeeInputs()">
+                            使用费用计算结果
+                        </label>
+                        <label>
+                            <input type="radio" name="wfsFeeSource" value="manual" onchange="window.toggleWFSFeeInputs()">
+                            手动输入
+                        </label>
+                    </div>
+                </div>
+
+                <div id="manualWFSFeeInputs" class="service-inputs hidden">
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label for="manualFulfillmentFee">基础配送费 ($)</label>
+                            <input type="number" id="manualFulfillmentFee" step="0.01" value="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="manualAdditionalFees">配送附加费 ($)</label>
+                            <input type="number" id="manualAdditionalFees" step="0.01" value="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="manualStorageFee">存储费 ($)</label>
+                            <input type="number" id="manualStorageFee" step="0.01" value="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="manualItsFee">ITS转移费 ($)</label>
+                            <input type="number" id="manualItsFee" step="0.01" value="0">
+                        </div>
+                    </div>
+                </div>
+
                 <button class="calculate-btn" onclick="window.calculateProfit()">计算利润</button>
             </div>
 
@@ -567,7 +675,11 @@
                 </div>
                 <div class="profit-result-item">
                     <span class="profit-result-label">产品采购成本:</span>
-                    <span class="profit-result-value" id="displayCostOfGoods">$0.00</span>
+                    <span class="profit-result-value" id="displayCostOfGoodsRMB">¥0.00</span>
+                </div>
+                <div class="profit-result-item">
+                    <span class="profit-result-label">换算后采购成本 (USD):</span>
+                    <span class="profit-result-value" id="displayCostOfGoodsUSD">$0.00</span>
                 </div>
                 
                 <div class="profit-result-item">
@@ -640,7 +752,7 @@
     // Firebase SDK imports
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, getDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, getDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Firebase 配置对象 (直接使用您提供的配置)
     const firebaseConfig = {
@@ -668,6 +780,10 @@
 
     // Array to store historical calculations (synced with Firestore)
     let calculationHistory = [];
+
+    // --- 全局单位转换常量 ---
+    const CM_PER_INCH = 2.54; // 1 inch = 2.54 cm
+    const LB_PER_KG = 2.20462; // 1 kg = 2.20462 pounds
 
     /**
      * Initializes Firebase and authenticates the user.
@@ -709,7 +825,7 @@
             return;
         }
 
-        // 构建 Firestore 查询：指向公共的 'artifacts/{appId}/public_calculations' 集合 (已修正路径)
+        // 构建 Firestore 查询：指向公共的 'artifacts/{appId}/public_calculations' 集合
         const calculationsCollectionRef = collection(db, 'artifacts', appId, 'public_calculations');
         const q = query(calculationsCollectionRef, orderBy('timestamp', 'desc')); // 按时间倒序排列
 
@@ -751,6 +867,12 @@
         document.getElementById(tabId + '-tab').classList.remove('hidden');
         // Activate the corresponding tab button
         document.querySelector(`.tab-button[onclick="window.showTab('${tabId}')"]`).classList.add('active');
+        
+        // When switching to profit tab, ensure WFS fee inputs are correctly set up
+        if (tabId === 'profit') {
+            window.toggleWFSFeeInputs(); // Initialize visibility of manual WFS inputs
+            window.calculateProfit(); // Recalculate profit if switching to this tab
+        }
     }
     // Make showTab globally accessible
     window.showTab = showTab;
@@ -761,45 +883,61 @@
      * @param {string} type - The type of example ('earring', 'pan', 'bike').
      */
     function setEx(type) {
+        let lengthCm, widthCm, heightCm, weightKg, costOfGoodsRMB;
+
         if (type == 'earring') {
+            lengthCm = 1.0 * CM_PER_INCH; // Original: 1.0 inch
+            widthCm = 1.0 * CM_PER_INCH;   // Original: 1.0 inch
+            heightCm = 2.0 * CM_PER_INCH;  // Original: 2.0 inches
+            weightKg = 0.13 / LB_PER_KG;   // Original: 0.13 lbs
+            costOfGoodsRMB = 5 * 7.0;      // Original: $5, assume 7 RMB/$
             document.getElementById('productName').value = '精美耳环';
             document.getElementById('itemId').value = 'EA-001';
-            document.getElementById('length').value = 1.0;
-            document.getElementById('width').value = 1.0;
-            document.getElementById('height').value = 2.0;
-            document.getElementById('weight').value = 0.13;
             document.getElementById('price').value = 15;
             document.getElementById('sellingPrice').value = 18; // Example selling price for profit analysis
-            document.getElementById('costOfGoods').value = 5; // Example COGS
             document.getElementById('isApparel').checked = false;
             document.getElementById('isHazmat').checked = false;
+            document.getElementById('productNotes').value = '小型耳环，适合WFS标准件。'; // Example note
         } else if (type == 'pan') {
+            lengthCm = 18.6 * CM_PER_INCH; // Original: 18.6 inches
+            widthCm = 10.5 * CM_PER_INCH;  // Original: 10.5 inches
+            heightCm = 3.0 * CM_PER_INCH;  // Original: 3.0 inches
+            weightKg = 3.7 / LB_PER_KG;    // Original: 3.7 lbs
+            costOfGoodsRMB = 20 * 7.0;     // Original: $20, assume 7 RMB/$
             document.getElementById('productName').value = '不锈钢煎锅';
             document.getElementById('itemId').value = 'PAN-SS-002';
-            document.getElementById('length').value = 18.6;
-            document.getElementById('width').value = 10.5;
-            document.getElementById('height').value = 3.0;
-            document.getElementById('weight').value = 3.7;
             document.getElementById('price').value = 50;
             document.getElementById('sellingPrice').value = 65; // Example selling price
-            document.getElementById('costOfGoods').value = 20; // Example COGS
             document.getElementById('isApparel').checked = false;
             document.getElementById('isHazmat').checked = false;
+            document.getElementById('productNotes').value = '中型煎锅，可能接近超大件。'; // Example note
         } else if (type == 'bike') {
+            lengthCm = 49.0 * CM_PER_INCH; // Original: 49.0 inches
+            widthCm = 7.7 * CM_PER_INCH;   // Original: 7.7 inches
+            heightCm = 26.4 * CM_PER_INCH; // Original: 26.4 inches
+            weightKg = 25.6 / LB_PER_KG;   // Original: 25.6 lbs
+            costOfGoodsRMB = 250 * 7.0;    // Original: $250, assume 7 RMB/$
             document.getElementById('productName').value = '山地自行车';
             document.getElementById('itemId').value = 'BIKE-MTN-003';
-            document.getElementById('length').value = 49.0;
-            document.getElementById('width').value = 7.7;
-            document.getElementById('height').value = 26.4;
-            document.getElementById('weight').value = 25.6;
             document.getElementById('price').value = 500;
             document.getElementById('sellingPrice').value = 600; // Example selling price
-            document.getElementById('costOfGoods').value = 250; // Example COGS
             document.getElementById('isApparel').checked = false;
             document.getElementById('isHazmat').checked = false;
+            document.getElementById('productNotes').value = '大型件，需要注意WFS超大件费用。'; // Example note
         }
+
+        document.getElementById('length').value = lengthCm.toFixed(2);
+        document.getElementById('width').value = widthCm.toFixed(2);
+        document.getElementById('height').value = heightCm.toFixed(2);
+        document.getElementById('weight').value = weightKg.toFixed(3);
+        document.getElementById('costOfGoods').value = costOfGoodsRMB.toFixed(2); // Set cost in RMB
+
+        // Reset profit fee source to auto when loading example
+        document.querySelector('input[name="wfsFeeSource"][value="auto"]').checked = true;
+        window.toggleWFSFeeInputs(); // Update visibility
+        
         window.calc(); // Recalculate WFS fees immediately
-        window.calculateProfit(); // Also calculate profit if the selling price is set
+        // calculateProfit will be called by calc's onSnapshot, or when switching to profit tab
     }
     // Make setEx globally accessible
     window.setEx = setEx;
@@ -860,6 +998,23 @@
     window.toggleReturn = toggleReturn;
 
     /**
+     * Toggles the visibility of manual WFS fee input fields in profit analysis.
+     */
+    function toggleWFSFeeInputs() {
+        const manualInputsDiv = document.getElementById('manualWFSFeeInputs');
+        const selectedSource = document.querySelector('input[name="wfsFeeSource"]:checked').value;
+
+        if (selectedSource === 'manual') {
+            manualInputsDiv.classList.remove('hidden');
+        } else {
+            manualInputsDiv.classList.add('hidden');
+        }
+        window.calculateProfit(); // Recalculate profit whenever source changes
+    }
+    // Make toggleWFSFeeInputs globally accessible
+    window.toggleWFSFeeInputs = toggleWFSFeeInputs;
+
+    /**
      * Calculates all Walmart Fulfillment Services (WFS) fees.
      * Displays the results and saves the calculation to Firestore.
      */
@@ -869,23 +1024,30 @@
             return; 
         }
 
-        // Retrieve input values, defaulting to 0 if empty or invalid
+        // Retrieve input values in their respective units
         var productName = document.getElementById('productName').value.trim();
         var itemId = document.getElementById('itemId').value.trim();
-        var length = parseFloat(document.getElementById('length').value) || 0;
-        var width = parseFloat(document.getElementById('width').value) || 0;
-        var height = parseFloat(document.getElementById('height').value) || 0;
-        var weight = parseFloat(document.getElementById('weight').value) || 0;
+        var lengthCm = parseFloat(document.getElementById('length').value) || 0;
+        var widthCm = parseFloat(document.getElementById('width').value) || 0;
+        var heightCm = parseFloat(document.getElementById('height').value) || 0;
+        var weightKg = parseFloat(document.getElementById('weight').value) || 0;
         var price = parseFloat(document.getElementById('price').value) || 0;
-        
+        var productNotes = document.getElementById('productNotes').value.trim(); // Get notes
+
         // Basic input validation
-        if (length === 0 || width === 0 || height === 0 || weight === 0) {
+        if (lengthCm === 0 || widthCm === 0 || heightCm === 0 || weightKg === 0) {
             document.getElementById('results').classList.add('hidden');
             console.log('请填写完整的产品信息');
             return;
         }
 
-        // Calculate volume and dimensional weight
+        // Convert inputs to inches and pounds for WFS calculations
+        var length = lengthCm / CM_PER_INCH;
+        var width = widthCm / CM_PER_INCH;
+        var height = heightCm / CM_PER_INCH;
+        var weight = weightKg * LB_PER_KG; // Convert kg to lbs
+
+        // Calculate volume and dimensional weight in imperial units
         var volume = (length * width * height) / 1728; // Volume in cubic feet (1728 cubic inches per cubic foot)
         var dimWeight = (length * width * height) / 139; // Dimensional weight for shipping (formula based on common carriers)
         var actualWeight = weight + 0.25; // Add 0.25 lbs to actual weight as per some WFS guides
@@ -909,17 +1071,17 @@
         
         // Calculate First Mile Fee (if included and standard size)
         var firstMileFee = 0;
-        var firstMileWeightKg = 0;
+        var firstMileWeightKgCalculated = 0; // The calculated first mile weight in kg
         if (document.getElementById('firstMile').value == 'yes' && isStandard) {
             var qty = parseInt(document.getElementById('firstMileQuantity').value) || 1;
             var rate = parseFloat(document.getElementById('firstMileRate').value) || 42; // Default rate ¥/kg
             
-            var actualWeightLb = weight;
-            var dimWeightLb = (length * width * height) / 139;
+            var actualWeightLb = weight; // Already converted to lbs
+            var dimWeightLb = (length * width * height) / 139; // Already calculated in lbs
             var chargeableWeightLb = Math.max(actualWeightLb, dimWeightLb); // Chargeable weight in pounds
-            firstMileWeightKg = chargeableWeightLb * 0.453592; // Convert pounds to kilograms
+            firstMileWeightKgCalculated = chargeableWeightLb / LB_PER_KG; // Convert pounds back to kilograms for display and calc
             
-            firstMileFee = firstMileWeightKg * rate * qty;
+            firstMileFee = firstMileWeightKgCalculated * rate * qty;
         }
         
         // Calculate Storage Fee
@@ -1037,7 +1199,7 @@
         
         // Display calculated WFS fees in the calculator tab
         document.getElementById('isStandard').textContent = isStandard ? '是' : '否';
-        document.getElementById('firstMileWeight').textContent = firstMileWeightKg.toFixed(3) + ' kg';
+        document.getElementById('firstMileWeight').textContent = firstMileWeightKgCalculated.toFixed(3) + ' kg'; // Display in kg
         document.getElementById('firstMileFee').textContent = '¥' + firstMileFee.toFixed(2);
         document.getElementById('itsFee').textContent = '$' + itsFee.toFixed(2);
         document.getElementById('returnFee').textContent = '$' + returnFee.toFixed(2);
@@ -1054,7 +1216,8 @@
             createdByUserId: userId, // 新增字段：记录创建这条记录的用户ID
             inputs: {
                 productName, itemId, 
-                length, width, height, weight, price,
+                lengthCm, widthCm, heightCm, weightKg, price, // Save original input units
+                productNotes, // Save notes
                 isApparel: document.getElementById('isApparel').checked,
                 isHazmat: document.getElementById('isHazmat').checked,
                 firstMile: document.getElementById('firstMile').value,
@@ -1067,14 +1230,22 @@
                 storageMonth: document.getElementById('storageMonth').value,
                 storageDuration: parseInt(document.getElementById('storageDuration').value) || 1,
                 sellingPrice: parseFloat(document.getElementById('sellingPrice').value) || 0,
-                costOfGoods: parseFloat(document.getElementById('costOfGoods').value) || 0,
+                costOfGoods: parseFloat(document.getElementById('costOfGoods').value) || 0, // This is now in RMB
+                rmbToUsdRate: parseFloat(document.getElementById('rmbToUsdRate').value) || 7.0, // Save exchange rate
                 adSpendRatio: parseFloat(document.getElementById('adSpendRatio').value) || 10,
                 returnRatio: parseFloat(document.getElementById('returnRatio').value) || 5,
-                commissionRate: parseFloat(document.getElementById('commissionRate').value) || 15
+                commissionRate: parseFloat(document.getElementById('commissionRate').value) || 15,
+                
+                // Save manual WFS fees if they were set, otherwise default to 0
+                profitFeeSource: document.querySelector('input[name="wfsFeeSource"]:checked').value,
+                manualFulfillmentFee: parseFloat(document.getElementById('manualFulfillmentFee').value) || 0,
+                manualAdditionalFees: parseFloat(document.getElementById('manualAdditionalFees').value) || 0,
+                manualStorageFee: parseFloat(document.getElementById('manualStorageFee').value) || 0,
+                manualItsFee: parseFloat(document.getElementById('manualItsFee').value) || 0
             },
             results: {
                 isStandard,
-                firstMileWeightKg: firstMileWeightKg.toFixed(3),
+                firstMileWeightKg: firstMileWeightKgCalculated.toFixed(3), // The calculated chargeable weight in kg
                 firstMileFee: firstMileFee.toFixed(2),
                 itsFee: itsFee.toFixed(2),
                 returnFee: returnFee.toFixed(2), 
@@ -1085,7 +1256,7 @@
             }
         };
 
-        // Save to Firestore - 修改为公共集合路径 (已修正路径)
+        // Save to Firestore - 修改为公共集合路径
         if (db && userId) { 
             try {
                 const docRef = await addDoc(collection(db, 'artifacts', appId, 'public_calculations'), calculationData);
@@ -1094,6 +1265,7 @@
                 console.error("Error adding document: ", e);
             }
         }
+        window.calculateProfit(); // Recalculate profit after saving (ensures latest WFS fees are reflected if auto-selected)
     }
     // Make calc globally accessible
     window.calc = calc;
@@ -1103,16 +1275,31 @@
      */
     function calculateProfit() {
         const sellingPrice = parseFloat(document.getElementById('sellingPrice').value) || 0;
-        const costOfGoods = parseFloat(document.getElementById('costOfGoods').value) || 0;
+        const costOfGoodsRMB = parseFloat(document.getElementById('costOfGoods').value) || 0;
+        const rmbToUsdRate = parseFloat(document.getElementById('rmbToUsdRate').value) || 7.0;
         const adSpendRatio = parseFloat(document.getElementById('adSpendRatio').value) || 0;
         const returnRatio = parseFloat(document.getElementById('returnRatio').value) || 0;
         const commissionRate = parseFloat(document.getElementById('commissionRate').value) || 0;
 
-        // Get individual WFS fee components directly from the calculator's display
-        const fulfillmentFee = parseFloat(document.getElementById('fulfillmentFee').textContent.replace('$', '')) || 0;
-        const additionalFees = parseFloat(document.getElementById('additionalFees').textContent.replace('$', '')) || 0;
-        const storageFee = parseFloat(document.getElementById('storageFee').textContent.replace('$', '')) || 0;
-        const itsFee = parseFloat(document.getElementById('itsFee').textContent.replace('$', '')) || 0;
+        // Convert RMB cost of goods to USD for profit calculation
+        const costOfGoodsUSD = costOfGoodsRMB / rmbToUsdRate;
+
+        let fulfillmentFee, additionalFees, storageFee, itsFee;
+        const selectedSource = document.querySelector('input[name="wfsFeeSource"]:checked').value;
+
+        if (selectedSource === 'auto') {
+            // Read from the calculator's results display
+            fulfillmentFee = parseFloat(document.getElementById('fulfillmentFee').textContent.replace('$', '')) || 0;
+            additionalFees = parseFloat(document.getElementById('additionalFees').textContent.replace('$', '')) || 0;
+            storageFee = parseFloat(document.getElementById('storageFee').textContent.replace('$', '')) || 0;
+            itsFee = parseFloat(document.getElementById('itsFee').textContent.replace('$', '')) || 0;
+        } else {
+            // Read from manual input fields
+            fulfillmentFee = parseFloat(document.getElementById('manualFulfillmentFee').value) || 0;
+            additionalFees = parseFloat(document.getElementById('manualAdditionalFees').value) || 0;
+            storageFee = parseFloat(document.getElementById('manualStorageFee').value) || 0;
+            itsFee = parseFloat(document.getElementById('manualItsFee').value) || 0;
+        }
 
         // Calculate total WFS cost for profit analysis, excluding return fee
         const totalWFSCostForProfit = fulfillmentFee + additionalFees + storageFee + itsFee;
@@ -1128,12 +1315,13 @@
         const salesCommission = sellingPrice * (commissionRate / 100);
 
         // Calculate Net Profit
-        const netProfit = sellingPrice - costOfGoods - totalWFSCostForProfit - adCost - profitReturnCost - salesCommission;
+        const netProfit = sellingPrice - costOfGoodsUSD - totalWFSCostForProfit - adCost - profitReturnCost - salesCommission;
         const profitMargin = (sellingPrice !== 0) ? (netProfit / sellingPrice * 100) : 0;
 
         // Display profit results
         document.getElementById('displaySellingPrice').textContent = '$' + sellingPrice.toFixed(2);
-        document.getElementById('displayCostOfGoods').textContent = '$' + costOfGoods.toFixed(2);
+        document.getElementById('displayCostOfGoodsRMB').textContent = '¥' + costOfGoodsRMB.toFixed(2); // Display RMB cost
+        document.getElementById('displayCostOfGoodsUSD').textContent = '$' + costOfGoodsUSD.toFixed(2); // Display USD cost
         
         // Display individual WFS fee components in profit analysis
         document.getElementById('displayFulfillmentFee').textContent = '$' + fulfillmentFee.toFixed(2);
@@ -1193,13 +1381,14 @@
                 <div class="grid-cell">产品名称</div>
                 <div class="grid-cell">Item ID</div>
                 <div class="grid-cell">售价</div>
-                <div class="grid-cell">产品采购成本</div>
+                <div class="grid-cell">采购成本(¥)</div>
                 <div class="grid-cell">基础配送费</div>
                 <div class="grid-cell">佣金率</div>
                 <div class="grid-cell">广告占比</div>
                 <div class="grid-cell">退货占比</div>
                 <div class="grid-cell">利润率</div>
                 <div class="grid-cell">创建者</div>
+                <div class="grid-cell">备注</div>
                 <div class="grid-cell">操作</div>
             `;
             historyList.appendChild(headerRow);
@@ -1216,14 +1405,27 @@
             listItem.classList.add('history-item', 'history-grid-row'); // Apply grid row class to each item
 
             // Calculate profit margin for display in history, ensuring it matches the profit analysis calculation logic
-            const currentFulfillmentFee = parseFloat(item.results.fulfillmentFee) || 0;
-            const currentAdditionalFees = parseFloat(item.results.additionalFees) || 0;
-            const currentStorageFee = parseFloat(item.results.storageFee) || 0;
-            const currentItsFee = parseFloat(item.results.itsFee) || 0;
+            // Use the stored manual fees if available and mode was manual, otherwise use auto-calculated results
+            let currentFulfillmentFee, currentAdditionalFees, currentStorageFee, currentItsFee;
+            if (item.inputs.profitFeeSource === 'manual') {
+                currentFulfillmentFee = parseFloat(item.inputs.manualFulfillmentFee) || 0;
+                currentAdditionalFees = parseFloat(item.inputs.manualAdditionalFees) || 0;
+                currentStorageFee = parseFloat(item.inputs.manualStorageFee) || 0;
+                currentItsFee = parseFloat(item.inputs.manualItsFee) || 0;
+            } else {
+                currentFulfillmentFee = parseFloat(item.results.fulfillmentFee) || 0;
+                currentAdditionalFees = parseFloat(item.results.additionalFees) || 0;
+                currentStorageFee = parseFloat(item.results.storageFee) || 0;
+                currentItsFee = parseFloat(item.results.itsFee) || 0;
+            }
+
             const totalWFSCostForProfitDisplay = currentFulfillmentFee + currentAdditionalFees + currentStorageFee + currentItsFee;
 
             const sellingPriceHistory = item.inputs.sellingPrice || 0;
-            const costOfGoodsHistory = item.inputs.costOfGoods || 0;
+            const costOfGoodsRMBHistory = item.inputs.costOfGoods || 0; // This is now RMB
+            const rmbToUsdRateHistory = item.inputs.rmbToUsdRate || 7.0; // Use saved rate or default
+            const costOfGoodsUSDHistory = costOfGoodsRMBHistory / rmbToUsdRateHistory; // Convert to USD for profit calculation
+
             const adSpendRatioHistory = item.inputs.adSpendRatio || 0;
             const returnRatioHistory = item.inputs.returnRatio || 0;
             const commissionRateHistory = item.inputs.commissionRate || 0;
@@ -1232,15 +1434,15 @@
             const profitReturnCostHistory = sellingPriceHistory * (returnRatioHistory / 100); 
             const salesCommissionHistory = sellingPriceHistory * (commissionRateHistory / 100);
 
-            const netProfitHistory = sellingPriceHistory - costOfGoodsHistory - totalWFSCostForProfitDisplay - adCostHistory - profitReturnCostHistory - salesCommissionHistory;
+            const netProfitHistory = sellingPriceHistory - costOfGoodsUSDHistory - totalWFSCostForProfitDisplay - adCostHistory - profitReturnCostHistory - salesCommissionHistory;
             const profitMarginHistory = (sellingPriceHistory !== 0) ? (netProfitHistory / sellingPriceHistory * 100) : 0;
 
 
             // Format values for display
             const sellingPriceFormatted = sellingPriceHistory !== undefined && sellingPriceHistory !== null
                                         ? `$${sellingPriceHistory.toFixed(2)}` : 'N/A';
-            const costOfGoodsFormatted = costOfGoodsHistory !== undefined && costOfGoodsHistory !== null
-                                        ? `$${costOfGoodsHistory.toFixed(2)}` : 'N/A';
+            const costOfGoodsFormatted = costOfGoodsRMBHistory !== undefined && costOfGoodsRMBHistory !== null
+                                        ? `¥${costOfGoodsRMBHistory.toFixed(2)}` : 'N/A'; // Display in RMB
             const fulfillmentFeeFormatted = currentFulfillmentFee !== undefined && currentFulfillmentFee !== null
                                         ? `$${currentFulfillmentFee.toFixed(2)}` : 'N/A';
             const commissionRateFormatted = commissionRateHistory !== undefined && commissionRateHistory !== null
@@ -1251,7 +1453,10 @@
                                         ? `${returnRatioHistory.toFixed(1)}%` : 'N/A';
             const profitMarginFormatted = profitMarginHistory !== undefined && profitMarginHistory !== null
                                         ? `${profitMarginHistory.toFixed(2)}%` : 'N/A';
+            // Display full userId for clarity if desired, or truncated as before
             const createdByUserIdDisplay = item.createdByUserId ? item.createdByUserId.substring(0, 8) + '...' : 'N/A'; // 显示部分用户ID
+            const productNotesDisplay = item.inputs.productNotes || '';
+
 
             // Populate the grid cells
             listItem.innerHTML = `
@@ -1264,13 +1469,17 @@
                 <div class="grid-cell ad-spend-ratio-cell">${adSpendRatioFormatted}</div>
                 <div class="grid-cell return-ratio-cell">${returnRatioFormatted}</div>
                 <div class="grid-cell profit-margin-cell ${netProfitHistory < 0 ? 'profit-negative' : ''}">${profitMarginFormatted}</div>
-                <div class="grid-cell created-by-cell">${createdByUserIdDisplay}</div> <!-- 新增显示创建者ID -->
-                <div class="grid-cell load-button-cell"><button class="history-load-btn" onclick="window.loadHistoryItem('${item.id}')">加载</button></div>
+                <div class="grid-cell created-by-cell">${createdByUserIdDisplay}</div> 
+                <div class="grid-cell notes-cell" title="${productNotesDisplay}">${productNotesDisplay}</div> <!-- 新增备注列 -->
+                <div class="grid-cell load-button-cell">
+                    <button class="load-button" onclick="window.loadHistoryItem('${item.id}')">加载</button>
+                    <button class="delete-button" onclick="window.deleteHistoryItem('${item.id}')">删除</button>
+                </div>
             `;
             historyList.appendChild(listItem);
         });
     }
-    // Make updateHistoryList globally accessible (though it's called internally by filterHistory/setupHistoryListener)
+    // Make updateHistoryList globally accessible
     window.updateHistoryList = updateHistoryList;
 
 
@@ -1279,28 +1488,29 @@
      * @param {string} docId - The Firestore document ID of the history item to load.
      */
     async function loadHistoryItem(docId) {
-        if (!db) { // No need to check userId for public collection read
+        if (!db) { 
             console.error("Database not ready. Cannot load history item.");
             return;
         }
 
         try {
-            // 从公共集合路径加载文档 (已修正路径)
+            // 从公共集合路径加载文档
             const docRef = doc(db, 'artifacts', appId, 'public_calculations', docId);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
                 const item = docSnap.data();
-                // Load calculator inputs
+                // Load calculator inputs (use original saved metric units)
                 document.getElementById('productName').value = item.inputs.productName || '';
                 document.getElementById('itemId').value = item.inputs.itemId || '';
-                document.getElementById('length').value = item.inputs.length;
-                document.getElementById('width').value = item.inputs.width;
-                document.getElementById('height').value = item.inputs.height;
-                document.getElementById('weight').value = item.inputs.weight;
+                document.getElementById('length').value = item.inputs.lengthCm;
+                document.getElementById('width').value = item.inputs.widthCm;
+                document.getElementById('height').value = item.inputs.heightCm;
+                document.getElementById('weight').value = item.inputs.weightKg;
                 document.getElementById('price').value = item.inputs.price;
                 document.getElementById('isApparel').checked = item.inputs.isApparel;
                 document.getElementById('isHazmat').checked = item.inputs.isHazmat;
+                document.getElementById('productNotes').value = item.inputs.productNotes || ''; // Load notes
                 
                 document.getElementById('firstMile').value = item.inputs.firstMile;
                 window.toggleFirstMile(); // Ensure visibility is updated
@@ -1320,15 +1530,25 @@
 
                 // Load profit analysis inputs
                 document.getElementById('sellingPrice').value = item.inputs.sellingPrice;
-                document.getElementById('costOfGoods').value = item.inputs.costOfGoods;
+                document.getElementById('costOfGoods').value = item.inputs.costOfGoods; // This is now RMB
+                document.getElementById('rmbToUsdRate').value = item.inputs.rmbToUsdRate; // Load saved exchange rate
                 document.getElementById('adSpendRatio').value = item.inputs.adSpendRatio;
                 document.getElementById('returnRatio').value = item.inputs.returnRatio;
                 document.getElementById('commissionRate').value = item.inputs.commissionRate;
 
-                // Recalculate and display results for the loaded item
-                window.calc(); // Calculate WFS fees
-                window.calculateProfit(); // Calculate profit based on these inputs
+                // Restore WFS fee source and manual inputs
+                const savedProfitFeeSource = item.inputs.profitFeeSource || 'auto';
+                document.querySelector(`input[name="wfsFeeSource"][value="${savedProfitFeeSource}"]`).checked = true;
+                document.getElementById('manualFulfillmentFee').value = item.inputs.manualFulfillmentFee || 0;
+                document.getElementById('manualAdditionalFees').value = item.inputs.manualAdditionalFees || 0;
+                document.getElementById('manualStorageFee').value = item.inputs.manualStorageFee || 0;
+                document.getElementById('manualItsFee').value = item.inputs.manualItsFee || 0;
+                window.toggleWFSFeeInputs(); // Update visibility based on loaded source
 
+                // Recalculate and display results for the loaded item
+                window.calc(); // Calculate WFS fees based on reloaded inputs
+                // window.calculateProfit() will be called by toggleWFSFeeInputs as it depends on the loaded values
+                
                 window.showTab('calculator'); // Switch back to the calculator tab to show the loaded values and their results
             } else {
                 console.log("No such document!");
@@ -1339,6 +1559,29 @@
     }
     // Make loadHistoryItem globally accessible
     window.loadHistoryItem = loadHistoryItem;
+
+    /**
+     * Deletes a historical calculation record from Firestore.
+     * @param {string} docId - The Firestore document ID of the history item to delete.
+     */
+    async function deleteHistoryItem(docId) {
+        // No confirmation pop-up, delete directly as requested
+        if (!db) {
+            console.error("Database not ready. Cannot delete history item.");
+            return;
+        }
+        try {
+            // 指向公共集合路径的文档
+            const docRef = doc(db, 'artifacts', appId, 'public_calculations', docId);
+            await deleteDoc(docRef);
+            console.log("Document successfully deleted!");
+            // onSnapshot listener will automatically update the UI after deletion
+        } catch (error) {
+            console.error("Error removing document: ", error);
+        }
+    }
+    // Make deleteHistoryItem globally accessible
+    window.deleteHistoryItem = deleteHistoryItem;
 
 
     // Initial setup when the page loads
