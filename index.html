@@ -271,8 +271,8 @@
         /* Styles for the grid header and grid items */
         .history-grid-row {
             display: grid;
-            /* Adjusted for notes and delete button */
-            grid-template-columns: 1.3fr 0.9fr 0.6fr 0.9fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 1.2fr 1.5fr; 
+            /* Adjusted for firstMileFee column and overall count (13 columns now) */
+            grid-template-columns: 1.3fr 0.9fr 0.6fr 0.9fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.7fr 1.2fr 1.5fr; 
             align-items: center;
             gap: 10px; /* Space between columns */
             padding: 10px 15px;
@@ -310,9 +310,6 @@
         .history-item .grid-cell {
             padding: 8px 5px;
             word-break: break-word; /* Allow long words to break */
-            /* overflow: hidden; */ /* Removed to allow text wrap in notes */
-            /* text-overflow: ellipsis; */ /* Removed for notes to allow wrapping */
-            /* white-space: nowrap; */ /* Removed for notes to allow wrapping */
         }
 
         .history-item .grid-cell.profit-negative {
@@ -396,12 +393,13 @@
             .history-item .selling-price-cell:before { content: "售价:"; }
             .history-item .cost-of-goods-cell:before { content: "采购成本:"; }
             .history-item .fulfillment-fee-cell:before { content: "基础配送费:"; }
+            .history-item .first-mile-fee-cell:before { content: "头程运输费:"; } /* New label for mobile */
             .history-item .commission-rate-cell:before { content: "佣金率:"; }
             .history-item .ad-spend-ratio-cell:before { content: "广告占比:"; }
             .history-item .return-ratio-cell:before { content: "退货占比:"; }
             .history-item .profit-margin-cell:before { content: "利润率:"; }
-            .history-item .created-by-cell:before { content: "创建者:"; } /* New label for mobile */
-            .history-item .notes-cell:before { content: "备注:"; } /* New label for mobile */
+            .history-item .created-by-cell:before { content: "创建者:"; } 
+            .history-item .notes-cell:before { content: "备注:"; } 
             .history-item .load-button-cell {
                 text-align: right; /* Align load button to the right */
                 margin-top: 10px;
@@ -687,6 +685,10 @@
                             <label for="manualItsFee">ITS转移费 ($)</label>
                             <input type="number" id="manualItsFee" step="0.01" value="0">
                         </div>
+                        <div class="input-group">
+                            <label for="manualFirstMileFee">头程运输费 ($)</label> <!-- NEW MANUAL INPUT -->
+                            <input type="number" id="manualFirstMileFee" step="0.01" value="0">
+                        </div>
                     </div>
                 </div>
 
@@ -726,9 +728,13 @@
                     <span class="profit-result-label">--- ITS转移费:</span>
                     <span class="profit-result-value" id="displayITSFee">$0.00</span>
                 </div>
+                 <div class="profit-result-item">
+                    <span class="profit-result-label">--- 头程运输费:</span> <!-- NEW PROFIT DISPLAY -->
+                    <span class="profit-result-value" id="displayFirstMileFee">$0.00</span>
+                </div>
 
                 <div class="profit-result-item">
-                    <span class="profit-result-label">总WFS费用 (不含退货):</span>
+                    <span class="profit-result-label">WFS核心费用合计:</span> <!-- LABEL CHANGED -->
                     <span class="profit-result-value" id="displayTotalWFS">$0.00</span>
                 </div>
                 
@@ -1195,7 +1201,7 @@
         }
 
         // Calculate First Mile Fee (only if included AND is Standard item, based on *domestic* dim weight)
-        var firstMileFee = 0;
+        var firstMileFee = 0; // This is in RMB
         var firstMileWeightKgCalculated = 0;
         // Keep `isStandard` check based on previous user conversation and typical first mile logic.
         if (document.getElementById('firstMile').value == 'yes' && isStandard) {
@@ -1230,7 +1236,7 @@
             var itsQty = parseInt(document.getElementById('itsQuantity').value) || 1;
             var itsWeightLbForFee; 
 
-            // ITS weight calculation logic (uses imperial units for WFS context)
+            // ITS weight calculation logic (uses imperial units from WFS context)
             if (actualWeightLb < 1) {
                 itsWeightLbForFee = Math.ceil(actualWeightLb);
             } else {
@@ -1293,6 +1299,7 @@
 
 
         // Total WFS cost (for calculator display)
+        // This total includes all WFS-related fees (fulfillment, additional, storage, ITS, return)
         var totalWFSCost = fulfillmentFee + additionalFees + storageFee + itsFee + returnFee;
 
         // Display calculated WFS fees in the calculator tab
@@ -1339,12 +1346,13 @@
                 manualFulfillmentFee: parseFloat(document.getElementById('manualFulfillmentFee').value) || 0,
                 manualAdditionalFees: parseFloat(document.getElementById('manualAdditionalFees').value) || 0,
                 manualStorageFee: parseFloat(document.getElementById('manualStorageFee').value) || 0,
-                manualItsFee: parseFloat(document.getElementById('manualItsFee').value) || 0
+                manualItsFee: parseFloat(document.getElementById('manualItsFee').value) || 0,
+                manualFirstMileFee: parseFloat(document.getElementById('manualFirstMileFee').value) || 0 // Save manual first mile fee
             },
             results: {
                 isStandard,
                 firstMileWeightKg: firstMileWeightKgCalculated.toFixed(3), 
-                firstMileFee: firstMileFee.toFixed(2),
+                firstMileFee: firstMileFee.toFixed(2), // First mile fee is in RMB here
                 itsFee: itsFee.toFixed(2),
                 returnFee: returnFee.toFixed(2),
                 fulfillmentFee: fulfillmentFee.toFixed(2),
@@ -1383,7 +1391,7 @@
         // Convert RMB cost of goods to USD for profit calculation
         const costOfGoodsUSD = costOfGoodsRMB / rmbToUsdRate;
 
-        let fulfillmentFee, additionalFees, storageFee, itsFee;
+        let fulfillmentFee, additionalFees, storageFee, itsFee, firstMileFeeUSD;
         const selectedSource = document.querySelector('input[name="wfsFeeSource"]:checked').value;
 
         if (selectedSource === 'auto') {
@@ -1392,16 +1400,22 @@
             additionalFees = parseFloat(document.getElementById('additionalFees').textContent.replace('$', '')) || 0;
             storageFee = parseFloat(document.getElementById('storageFee').textContent.replace('$', '')) || 0;
             itsFee = parseFloat(document.getElementById('itsFee').textContent.replace('$', '')) || 0;
+            // Get first mile fee in RMB from calculator result and convert to USD
+            const firstMileFeeRMB = parseFloat(document.getElementById('firstMileFee').textContent.replace('¥', '')) || 0;
+            firstMileFeeUSD = firstMileFeeRMB / rmbToUsdRate;
         } else {
             // Read from manual input fields
             fulfillmentFee = parseFloat(document.getElementById('manualFulfillmentFee').value) || 0;
             additionalFees = parseFloat(document.getElementById('manualAdditionalFees').value) || 0;
             storageFee = parseFloat(document.getElementById('manualStorageFee').value) || 0;
             itsFee = parseFloat(document.getElementById('manualItsFee').value) || 0;
+            firstMileFeeUSD = parseFloat(document.getElementById('manualFirstMileFee').value) || 0; // Manual input is already in USD
         }
 
-        // Calculate total WFS cost for profit analysis, excluding return fee
-        const totalWFSCostForProfit = fulfillmentFee + additionalFees + storageFee + itsFee;
+        // Calculate "WFS核心费用合计" - sum of base WFS fees
+        // This sub-total explicitly excludes return fee and first mile fee, as per previous logic for "不含退货"
+        // And now first mile fee is displayed separately.
+        const coreWFSCost = fulfillmentFee + additionalFees + storageFee + itsFee;
 
         if (sellingPrice === 0) {
             console.log('请输入销售价格以计算利润。');
@@ -1413,8 +1427,18 @@
         const profitReturnCost = sellingPrice * (returnRatio / 100); 
         const salesCommission = sellingPrice * (commissionRate / 100);
 
-        // Calculate Net Profit
-        const netProfit = sellingPrice - costOfGoodsUSD - totalWFSCostForProfit - adCost - profitReturnCost - salesCommission;
+        // Calculate Net Profit: Selling Price - All Costs
+        const netProfit = sellingPrice 
+                        - costOfGoodsUSD 
+                        - fulfillmentFee 
+                        - additionalFees 
+                        - storageFee 
+                        - itsFee 
+                        - firstMileFeeUSD // Deduct first mile fee
+                        - adCost 
+                        - profitReturnCost 
+                        - salesCommission;
+
         const profitMargin = (sellingPrice !== 0) ? (netProfit / sellingPrice * 100) : 0;
 
         // Display profit results
@@ -1427,8 +1451,9 @@
         document.getElementById('displayAdditionalFees').textContent = '$' + additionalFees.toFixed(2);
         document.getElementById('displayStorageFee').textContent = '$' + storageFee.toFixed(2);
         document.getElementById('displayITSFee').textContent = '$' + itsFee.toFixed(2);
+        document.getElementById('displayFirstMileFee').textContent = '$' + firstMileFeeUSD.toFixed(2); // Display first mile fee in USD
 
-        document.getElementById('displayTotalWFS').textContent = '$' + totalWFSCostForProfit.toFixed(2);
+        document.getElementById('displayTotalWFS').textContent = '$' + coreWFSCost.toFixed(2); // Display core WFS cost
         document.getElementById('displayAdCost').textContent = '$' + adCost.toFixed(2);
         document.getElementById('displayReturnCost').textContent = '$' + profitReturnCost.toFixed(2); 
         document.getElementById('displayCommission').textContent = '$' + salesCommission.toFixed(2);
@@ -1482,6 +1507,7 @@
                 <div class="grid-cell">售价</div>
                 <div class="grid-cell">采购成本(¥)</div>
                 <div class="grid-cell">基础配送费</div>
+                <div class="grid-cell">头程运输费(¥)</div> <!-- NEW HISTORY HEADER -->
                 <div class="grid-cell">佣金率</div>
                 <div class="grid-cell">广告占比</div>
                 <div class="grid-cell">退货占比</div>
@@ -1504,26 +1530,29 @@
             listItem.classList.add('history-item', 'history-grid-row'); // Apply grid row class to each item
 
             // Calculate profit margin for display in history, ensuring it matches the profit analysis calculation logic
-            // Use the stored manual fees if available and mode was manual, otherwise use auto-calculated results
             let currentFulfillmentFee, currentAdditionalFees, currentStorageFee, currentItsFee;
+            let currentFirstMileFeeUSD;
+
+            const rmbToUsdRateHistory = item.inputs.rmbToUsdRate || 7.0;
+
             if (item.inputs.profitFeeSource === 'manual') {
                 currentFulfillmentFee = parseFloat(item.inputs.manualFulfillmentFee) || 0;
                 currentAdditionalFees = parseFloat(item.inputs.manualAdditionalFees) || 0;
                 currentStorageFee = parseFloat(item.inputs.manualStorageFee) || 0;
                 currentItsFee = parseFloat(item.inputs.manualItsFee) || 0;
+                currentFirstMileFeeUSD = parseFloat(item.inputs.manualFirstMileFee) || 0; // Manual is in USD
             } else {
                 currentFulfillmentFee = parseFloat(item.results.fulfillmentFee) || 0;
                 currentAdditionalFees = parseFloat(item.results.additionalFees) || 0;
                 currentStorageFee = parseFloat(item.results.storageFee) || 0;
                 currentItsFee = parseFloat(item.results.itsFee) || 0;
+                const firstMileFeeRMBHistory = parseFloat(item.results.firstMileFee) || 0;
+                currentFirstMileFeeUSD = firstMileFeeRMBHistory / rmbToUsdRateHistory; // Auto is in RMB, convert to USD
             }
 
-            const totalWFSCostForProfitDisplay = currentFulfillmentFee + currentAdditionalFees + currentStorageFee + currentItsFee;
-
             const sellingPriceHistory = item.inputs.sellingPrice || 0;
-            const costOfGoodsRMBHistory = item.inputs.costOfGoods || 0; // This is now RMB
-            const rmbToUsdRateHistory = item.inputs.rmbToUsdRate || 7.0; // Use saved rate or default
-            const costOfGoodsUSDHistory = costOfGoodsRMBHistory / rmbToUsdRateHistory; // Convert to USD for profit calculation
+            const costOfGoodsRMBHistory = item.inputs.costOfGoods || 0;
+            const costOfGoodsUSDHistory = costOfGoodsRMBHistory / rmbToUsdRateHistory;
 
             const adSpendRatioHistory = item.inputs.adSpendRatio || 0;
             const returnRatioHistory = item.inputs.returnRatio || 0;
@@ -1533,7 +1562,18 @@
             const profitReturnCostHistory = sellingPriceHistory * (returnRatioHistory / 100); 
             const salesCommissionHistory = sellingPriceHistory * (commissionRateHistory / 100);
 
-            const netProfitHistory = sellingPriceHistory - costOfGoodsUSDHistory - totalWFSCostForProfitDisplay - adCostHistory - profitReturnCostHistory - salesCommissionHistory;
+            // Calculate Net Profit for history display
+            const netProfitHistory = sellingPriceHistory 
+                                    - costOfGoodsUSDHistory 
+                                    - currentFulfillmentFee 
+                                    - currentAdditionalFees 
+                                    - currentStorageFee 
+                                    - currentItsFee 
+                                    - currentFirstMileFeeUSD // Deduct first mile fee (in USD)
+                                    - adCostHistory 
+                                    - profitReturnCostHistory 
+                                    - salesCommissionHistory;
+
             const profitMarginHistory = (sellingPriceHistory !== 0) ? (netProfitHistory / sellingPriceHistory * 100) : 0;
 
 
@@ -1541,9 +1581,11 @@
             const sellingPriceFormatted = sellingPriceHistory !== undefined && sellingPriceHistory !== null
                                         ? `$${sellingPriceHistory.toFixed(2)}` : 'N/A';
             const costOfGoodsFormatted = costOfGoodsRMBHistory !== undefined && costOfGoodsRMBHistory !== null
-                                        ? `¥${costOfGoodsRMBHistory.toFixed(2)}` : 'N/A'; // Display in RMB
+                                        ? `¥${costOfGoodsRMBHistory.toFixed(2)}` : 'N/A'; 
             const fulfillmentFeeFormatted = currentFulfillmentFee !== undefined && currentFulfillmentFee !== null
                                         ? `$${currentFulfillmentFee.toFixed(2)}` : 'N/A';
+            const firstMileFeeRMBFormatted = parseFloat(item.results.firstMileFee) !== undefined && parseFloat(item.results.firstMileFee) !== null
+                                        ? `¥${parseFloat(item.results.firstMileFee).toFixed(2)}` : 'N/A'; // Display in RMB for history
             const commissionRateFormatted = commissionRateHistory !== undefined && commissionRateHistory !== null
                                         ? `${commissionRateHistory.toFixed(1)}%` : 'N/A';
             const adSpendRatioFormatted = adSpendRatioHistory !== undefined && adSpendRatioHistory !== null
@@ -1552,8 +1594,7 @@
                                         ? `${returnRatioHistory.toFixed(1)}%` : 'N/A';
             const profitMarginFormatted = profitMarginHistory !== undefined && profitMarginHistory !== null
                                         ? `${profitMarginHistory.toFixed(2)}%` : 'N/A';
-            // Display full userId for clarity if desired, or truncated as before
-            const createdByUserIdDisplay = item.createdByUserId ? item.createdByUserId.substring(0, 8) + '...' : 'N/A'; // Show truncated user ID
+            const createdByUserIdDisplay = item.createdByUserId ? item.createdByUserId.substring(0, 8) + '...' : 'N/A'; 
             const productNotesDisplay = item.inputs.productNotes || '';
 
 
@@ -1564,6 +1605,7 @@
                 <div class="grid-cell selling-price-cell">${sellingPriceFormatted}</div>
                 <div class="grid-cell cost-of-goods-cell">${costOfGoodsFormatted}</div>
                 <div class="grid-cell fulfillment-fee-cell">${fulfillmentFeeFormatted}</div>
+                <div class="grid-cell first-mile-fee-cell">${firstMileFeeRMBFormatted}</div> <!-- NEW HISTORY CELL -->
                 <div class="grid-cell commission-rate-cell">${commissionRateFormatted}</div>
                 <div class="grid-cell ad-spend-ratio-cell">${adSpendRatioFormatted}</div>
                 <div class="grid-cell return-ratio-cell">${returnRatioFormatted}</div>
@@ -1642,6 +1684,7 @@
                 document.getElementById('manualAdditionalFees').value = item.inputs.manualAdditionalFees || 0;
                 document.getElementById('manualStorageFee').value = item.inputs.manualStorageFee || 0;
                 document.getElementById('manualItsFee').value = item.inputs.manualItsFee || 0;
+                document.getElementById('manualFirstMileFee').value = item.inputs.manualFirstMileFee || 0; // Load manual first mile fee
                 window.toggleWFSFeeInputs(); // Update visibility based on loaded source
 
                 // Recalculate and display results for the loaded item
