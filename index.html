@@ -709,8 +709,8 @@
             return;
         }
 
-        // 构建 Firestore 查询：指向公共的 'artifacts/{appId}/public/calculations' 集合
-        const calculationsCollectionRef = collection(db, 'artifacts', appId, 'public', 'calculations');
+        // 构建 Firestore 查询：指向公共的 'artifacts/{appId}/public_calculations' 集合 (已修正路径)
+        const calculationsCollectionRef = collection(db, 'artifacts', appId, 'public_calculations');
         const q = query(calculationsCollectionRef, orderBy('timestamp', 'desc')); // 按时间倒序排列
 
         onSnapshot(q, (snapshot) => {
@@ -866,8 +866,6 @@
     async function calc() {
         if (!db || !userId) {
             console.warn("Database or user not ready. Cannot save calculation.");
-            // For shared records, we still need a user ID to attribute the record
-            // For example: alert('数据库未准备好或用户未登录，无法保存计算结果。');
             return; 
         }
 
@@ -1087,10 +1085,10 @@
             }
         };
 
-        // Save to Firestore - 修改为公共集合路径
-        if (db && userId) { // 确保 Firebase 和用户 ID 都已准备好
+        // Save to Firestore - 修改为公共集合路径 (已修正路径)
+        if (db && userId) { 
             try {
-                const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'calculations'), calculationData);
+                const docRef = await addDoc(collection(db, 'artifacts', appId, 'public_calculations'), calculationData);
                 console.log("Document written with ID: ", docRef.id);
             } catch (e) {
                 console.error("Error adding document: ", e);
@@ -1110,17 +1108,11 @@
         const returnRatio = parseFloat(document.getElementById('returnRatio').value) || 0;
         const commissionRate = parseFloat(document.getElementById('commissionRate').value) || 0;
 
-        // Ensure calc() has been run to get the latest WFS costs and individual components.
-        // It's important to call calc() first to populate the WFS fee elements in the calculator tab,
-        // which are then used by calculateProfit.
-        // window.calc(); // This is already called by the onclick directly if needed.
-
         // Get individual WFS fee components directly from the calculator's display
         const fulfillmentFee = parseFloat(document.getElementById('fulfillmentFee').textContent.replace('$', '')) || 0;
         const additionalFees = parseFloat(document.getElementById('additionalFees').textContent.replace('$', '')) || 0;
         const storageFee = parseFloat(document.getElementById('storageFee').textContent.replace('$', '')) || 0;
         const itsFee = parseFloat(document.getElementById('itsFee').textContent.replace('$', '')) || 0;
-        // The returnFee from the calculator is explicitly excluded from the "总WFS费用 (不含退货)" for profit analysis
 
         // Calculate total WFS cost for profit analysis, excluding return fee
         const totalWFSCostForProfit = fulfillmentFee + additionalFees + storageFee + itsFee;
@@ -1132,7 +1124,6 @@
         }
 
         const adCost = sellingPrice * (adSpendRatio / 100);
-        // Return cost based on a percentage of selling price, as per user's request for "退货占比"
         const profitReturnCost = sellingPrice * (returnRatio / 100); 
         const salesCommission = sellingPrice * (commissionRate / 100);
 
@@ -1152,7 +1143,7 @@
 
         document.getElementById('displayTotalWFS').textContent = '$' + totalWFSCostForProfit.toFixed(2);
         document.getElementById('displayAdCost').textContent = '$' + adCost.toFixed(2);
-        document.getElementById('displayReturnCost').textContent = '$' + profitReturnCost.toFixed(2); // Display the return cost based on ratio
+        document.getElementById('displayReturnCost').textContent = '$' + profitReturnCost.toFixed(2); 
         document.getElementById('displayCommission').textContent = '$' + salesCommission.toFixed(2);
         
         // Format net profit and margin with appropriate color for positive/negative
@@ -1294,8 +1285,8 @@
         }
 
         try {
-            // 从公共集合路径加载文档
-            const docRef = doc(db, 'artifacts', appId, 'public', 'calculations', docId);
+            // 从公共集合路径加载文档 (已修正路径)
+            const docRef = doc(db, 'artifacts', appId, 'public_calculations', docId);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
